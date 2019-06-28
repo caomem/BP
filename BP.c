@@ -2,15 +2,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+int len = 3000;
+
+typedef struct _vertex{
+    float x, y, z;
+} vertex;
+
 void usage(char *exec){
-	printf("%s -solve <input_file>\n", exec);
+	printf("%s -solve <input_file> <count_vertex>\n", exec);
 }
 
-void solve(float **mat){
+void printMat(float **mat){
     int i, j;
-    for (i = 0; i < 3000; i++)
+    for (i = 0; i < len; i++)
     {
-        for (j = 0; j < 3000; j++)
+        for (j = 0; j < len; j++)
         {
             if(mat[i][j] != 0){
                 printf(" %f ", mat[i][j]);
@@ -21,8 +27,23 @@ void solve(float **mat){
     
 }
 
+void solve(float **mat){
+    
+    int i,j;
+    for (i = 0; i < len; i++)
+    {
+        for (j = 0; j < len; j++)
+        {
+            if(mat[i][j] != 0){
+                printf(" %f ", mat[i][j]);
+            }
+        }
+        
+    }
+}
+
 int main(int argc, char **argv){
-	if(argc<3){
+	if(argc<4){
 		usage(argv[0]);
 	} else{
         if( !strcmp(argv[1], "-solve")){
@@ -32,16 +53,23 @@ int main(int argc, char **argv){
                 perror("fopen: ");
                 return 1;
             }
+
+            if( (len = atoi(argv[3])) == 0){
+                /* error openning the file */
+                perror("count_vertex param error: ");
+                return 1;
+            }
+
             int n, i,j = 0, k = 0;
             char buff[5], buffFloat[16];
             if (fread(buff, sizeof(char), 5, file) < 5 || strcmp(buff, "E = [")){
                 perror("file out of params: ");
                 return 1;
             }
-            float **mat = (float**)calloc(3000, sizeof(float*));
-            for (i = 0; i < 3000; i++)
+            float **mat = (float**)calloc(len, sizeof(float*));
+            for (i = 0; i < len; i++)
             {
-                mat[i] = (float*)calloc(3000, sizeof(float*));
+                mat[i] = (float*)calloc(len, sizeof(float*));
             }
             i = 0;
             while((n = fread(buff, sizeof(char), 1, file)) == 1){
