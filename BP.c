@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <gsl/gsl_blas.h>
 
 int len = 3000;
 
@@ -28,7 +29,10 @@ void printMat(float **mat){
 }
 
 void solve(float **mat){
-    
+    vertex *v = (vertex*)calloc(len, sizeof(vertex));
+
+    v[1] = 
+
     int i,j;
     for (i = 0; i < len; i++)
     {
