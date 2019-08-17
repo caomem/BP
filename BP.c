@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include<time.h>
 #include <gsl/gsl_blas.h>
 
-double epsl = 2.561;
+double epsl = 0.01;
 
 typedef struct {
     double x, y, z;
@@ -21,23 +22,61 @@ void usage(char *exec) {
     printf("%s -c <input_file>\n", exec);
 }
 
-void teste() {
-    double a[] = {0.11, 0.12, 0.13, 0.21, 0.22, 0.23};
-    double b[] = {1011, 1012, 1021, 1022, 1031, 1032};
-    double c[] = {0.00, 0.00, 0.00, 0.00};
+int* ddd(char *fileName, int len){
+    FILE *file = NULL;
+    if ((file = fopen(fileName, "r")) == NULL) {
+        /* error openning the file */
+        perror("fopen: ");
+        return NULL;
+    }
+    int n, i, j = 0, k = 0;
+    char buff[6], buffFloat[17];
+    memset(buff, 0, sizeof(buff));
+    memset(buffFloat, 0, sizeof(buffFloat));
+    if (fread(buff, sizeof(char), 5, file) < 5 || strcmp(buff, "E = [")) {
+        perror("file out of params: ");
+        return NULL;
+    }
+    
+    double **mat = (double **)calloc(len, sizeof(double *));
+    for (i = 0; i < len; i++) {
+        mat[i] = (double *)calloc(3, sizeof(double *));
+    }
+    i = 0;
+    while ((n = fread(buff, sizeof(char), 1, file)) == 1) {
+        if (buff[0] == ' ') {
+            if (k > 0) {
+                mat[i][j] = atof(buffFloat);
+                memset(buffFloat, 0, sizeof(buffFloat));
+                k = 0;
+                j++;
+            }
+            continue;
+        }
+        else if (buff[0] == ';') {
+            if (k) {
+                mat[i][j] = atof(buffFloat);
+                memset(buffFloat, 0, sizeof(buffFloat));
+                k = 0;
+            }
+            j = 0;
+            i++;
+        }
+        else {
+            buffFloat[k++] = buff[0];
+        }
+    }
+    fclose(file);
 
-    gsl_matrix_view A = gsl_matrix_view_array(a, 2, 3);
-    gsl_matrix_view B = gsl_matrix_view_array(b, 3, 2);
-    gsl_matrix_view C = gsl_matrix_view_array(c, 2, 2);
-
-    /* Compute C = A B */
-
-    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans,
-                   1.0, &A.matrix, &B.matrix,
-                   0.0, &C.matrix);
-
-    printf("[ %g, %g\n", c[0], c[1]);
-    printf("  %g, %g ]\n", c[2], c[3]);
+    int current = 0; 
+    for (i = 0; i < len; i++) {
+        
+        for (j = 0; j < len; j++) {
+            printf(" %f ", sqrt(pow(mat[i][0] - mat[j][0], 2) + pow(mat[i][1] - mat[j][1], 2) + pow(mat[i][2] - mat[j][2], 2)));
+            fflush(stdout);
+        }
+        printf("\n");
+    }
 }
 
 void printMat(double **mat, int len) {
@@ -84,9 +123,6 @@ double **matrixConstruct(char *fileName, int len){
             }
             continue;
         }
-        else if (!k && buff[0] == '0') {
-            j++;
-        }
         else if (buff[0] == ';') {
             if (k) {
                 mat[i][j] = atof(buffFloat);
@@ -118,7 +154,7 @@ double dis(double **m, int i){
 }
 
 double theta(double **m, int i){
-    if (i-2 < 0) return -1;
+    if (i-1 < 0) return -1000;
     return acos((pow(m[i][i+1],2) + pow(m[i][i-1],2) - pow(m[i+1][i-1],2))/(2*m[i][i+1]*m[i][i-1]));
 }
 
@@ -133,49 +169,8 @@ double cosO(double **m, int i){
 }
 
 double cosOmega(double **m, int i){
-    if (i-3 < 0) return -1;
-    /* i--;
-    printf("%f, %d \n", acos((pow(m[i][i+1],2) + pow(m[i][i-1],2) - pow(m[i+1][i-1],2))/(2*m[i][i+1]*m[i][i-1]))+ acos((pow(m[i][i-1],2) + pow(m[i-1][i+1],2) - pow(m[i][i+1],2))/(2*m[i][i-1]*m[i-1][i+1]))+ acos((pow(m[i-1][i+1],2) + pow(m[i][i+1],2) - pow(m[i][i-1],2))/(2*m[i][i+1]*m[i-1][i+1])), i);
-    i--;
-    printf("%f, %d \n", acos((pow(m[i][i+1],2) + pow(m[i][i-1],2) - pow(m[i+1][i-1],2))/(2*m[i][i+1]*m[i][i-1]))+ acos((pow(m[i][i-1],2) + pow(m[i-1][i+1],2) - pow(m[i][i+1],2))/(2*m[i][i-1]*m[i-1][i+1]))+ acos((pow(m[i-1][i+1],2) + pow(m[i][i+1],2) - pow(m[i][i-1],2))/(2*m[i][i+1]*m[i-1][i+1])), i);
-    i++;i++;
-    printf("%f, %f %f %f\n", pow(m[i-3][i-2],2) + 
-        pow(m[i][i-2],2) - 
-        (
-            2*
-            m[i-3][i-2]*
-            m[i][i-2]*
-            cos(theta(m,i-2))*
-            cos(theta(m,i-1))
-        ) - 
-        pow(m[i][i-3],2), 2*
-        m[i-3][i-2]*
-        m[i][i-2]*
-        sin(theta(m,i-2))*
-        sin(theta(m,i-1)),  m[i-3][i-2], theta(m, i));
-    printf("%f, %f %f %f\n", cos(theta(m,i-2)), cos(theta(m,i-1)), m[i-3][i-2], cos(theta(m, i)));
-    
-    return 
-    (
-        pow(m[i-3][i-2],2) + 
-        pow(m[i][i-2],2) - 
-        (
-            2*
-            m[i-3][i-2]*
-            m[i][i-2]*
-            cos(theta(m,i-2))*
-            cos(theta(m,i-1))
-        ) - 
-        pow(m[i][i-3],2)
-    )/
-    (
-        2*
-        m[i-3][i-2]*
-        m[i][i-2]*
-        sin(theta(m,i-2))*
-        sin(theta(m,i-1))
-    );
-    */
+    if (i-3 < 0) return 1000;
+
     double Ai = (2*pow(m[i-2][i-1],2))*(pow(m[i-3][i-2],2) + pow(m[i-2][i] ,2) - pow(m[i-3][i] ,2));
     double Bi = pow(m[i-3][i-2],2) + pow(m[i-2][i-1],2) - pow(m[i-3][i-1],2);
     double Ci = pow(m[i-2][i-1],2) + pow(m[i-2][i],2) - pow(m[i-1][i],2);
@@ -191,44 +186,63 @@ double cosOmega(double **m, int i){
 }
 
 int isFeasible(double **mat, int len, vertex *v, int i){
-    int j;
-    //int s = 0;
-    for (j = 0; j < i; j++) {
-        
-        if (mat[i][j] && (i-j > 3)) {
-        //s++;
-            int k = i;
-            vertex *aux = v;
-            while (k-- > j){
-                aux = aux->p;
+    if (!v) return 0;
+    int j = i-1;
+    double pos[i][3];
+    vertex *aux = v->p;
+    while (aux)
+    {
+        //printf("\n\tj = %d {%f, %f, %f}\n", j, aux->pos.x, aux->pos.y, aux->pos.z);
+        pos[j][0] = aux->pos.x;
+        pos[j][1] = aux->pos.y;
+        pos[j--][2] = aux->pos.z;
+        aux = aux->p;
+    }
+    for (j = 0; j < i-3; j++)
+    {
+        if (mat[i][j] > 0)
+        {           
+            double dij = pow(v->pos.x - pos[j][0],2)+pow(v->pos.y - pos[j][1],2)+pow(v->pos.z - pos[j][2],2);
+            double diff = pow(mat[i][j],2)- dij;
+            if (diff < 0) diff = diff*(-1);
+            double dist = sqrt(diff);//pow(diff,2);
+            //printf("{%d,%d} {%f, %f, %f}-{%f, %f, %f} \n\t%.20f- %.20f = %.20f \n %.20f \n", i, j, v->pos.x, v->pos.y, v->pos.z, pos[j][0], pos[j][1], pos[j][2], mat[i][j], dij, diff, dist);
+            if (dist > epsl)
+            {
+               return 0;
             }
-                printf("{%d,%d, %d} %.20f %f, (%f, %f) %f %f %f\t %f %f %f\n",i,j, k, 
-                pow(sqrt(pow(v->pos.x - aux->pos.x, 2) + pow(v->pos.y - aux->pos.y, 2) + pow(v->pos.z - aux->pos.z, 2)) - mat[i][j], 2)
-                ,epsl
-                , mat[i][j], sqrt(
-                            pow(v->pos.x - aux->pos.x, 2) + 
-                            pow(v->pos.y - aux->pos.y, 2) + 
-                            pow(v->pos.z - aux->pos.z, 2)
-                        ),aux->pos.x, aux->pos.y, aux->pos.z, v->pos.x, v->pos.y, v->pos.z );
-            if (pow(sqrt(pow(v->pos.x - aux->pos.x, 2) + pow(v->pos.y - aux->pos.y, 2) + pow(v->pos.z - aux->pos.z, 2)) - mat[i][j], 2) > epsl){
-                return 0;
-           }
-        
         }
-    }   
-    //printf("%d", s); 
+    }
     return 1;
 }
+
+double LDE(double **mat, double **m, int len){
+    int i, j, count = 0;
+    double dij = 0;
+    for (i = 0; i < len; i++)
+    {
+        for (j = i+1; j < len; j++)
+        {
+            if (mat[i][j]>0){
+                dij = dij + pow((pow(mat[i][j],2) - (pow(m[i][0] - m[j][0], 2) + pow(m[i][1] - m[j][1], 2) + pow(m[i][2] - m[j][2], 2))),2)/mat[i][j];
+                count++;
+            }
+        }
+    }
+    return dij/count;
+    
+}
+
 int qtd = 0;
 int BranchAndPrune(double **mat, int len, vertex *v, int i){
     if(i < len){
         double thetai = theta(mat,i-1);
         double cti = cos(thetai);
         double sti = sin(thetai);
-        double cwi2 = cosOmega(mat, i);
-        double cwi = cosO(mat, i-3);
-        printf("%f %f \n", cwi, cwi2 );
-        printf("%f %f \n", acos(cwi)*57.295779513, acos(cwi2)*57.295779513 );
+        double cwi = cosOmega(mat, i);
+        //double cwi2 = cosO(mat, i-3);
+        //printf("%f %f \n", cwi, cwi2 );
+        //printf("%f %f \n", acos(cwi)*57.295779513, acos(cwi2)*57.295779513 );
         if (cwi*cwi > 1){
             printf("\n %f CORREEEEEEEEE BEEEEERG!!!!!!!!!!!!!!!!!!!!!!!!!!", cwi);
             getchar();
@@ -306,32 +320,32 @@ int BranchAndPrune(double **mat, int len, vertex *v, int i){
         free(Xi->matrix.data);
         free(Xi);
 
-        printf("[ %f, %f", rv->pos.x, rv->pos.y);
-        printf("  %f]\n", rv->pos.z);
-        printf("[ %f, %f", lv->pos.x, lv->pos.y);
-        printf("  %f ]\n", lv->pos.z);
+        //printf("[ %f, %f", rv->pos.x, rv->pos.y);
+        //printf("  %f]\n", rv->pos.z);
+        //printf("[ %f, %f", lv->pos.x, lv->pos.y);
+        //printf("  %f ]\n", lv->pos.z);
 
 
-        getchar();
+        //getchar();
             int s;
-            printf("\n");
+            //printf("\n");
         if (isFeasible(mat, len, rv, i)){
             v->r = rv;
-            for (s = 0; s < i; s++)
-            {
-                printf(">");
-            }
+            //for (s = 0; s < i; s++)
+            //{
+            //    printf(">");
+            //}
             
-            printf("1\n");
+            //printf("1\n");
             fflush(stdout);
             BranchAndPrune(mat, len, rv, i+1);
         }else {
-            for (s = 0; s < i; s++)
-            {
-                printf("<");
-            }
-            
-            printf("2\n");
+            //for (s = 0; s < i; s++)
+            //{
+            //    printf("<");
+            //}
+            //
+            //printf("2\n");
             free(rv->C->matrix.data);
             free(rv->C);
             free(rv);
@@ -341,34 +355,84 @@ int BranchAndPrune(double **mat, int len, vertex *v, int i){
         if (isFeasible(mat, len, lv, i)){
             v->l = lv;
 
-            for (s = 0; s < i; s++)
-            {
-                printf(">");
-            }
-            
-            printf("3\n");
+            //for (s = 0; s < i; s++)
+            //{
+            //    printf(">");
+            //}
+            //
+            //printf("3\n");
             fflush(stdout);
             BranchAndPrune(mat, len, lv, i+1);
         }else {
 
-            for (s = 0; s < i; s++)
-            {
-                printf("<");
-            }
-            
-            printf("4\n");
+            //for (s = 0; s < i; s++)
+            //{
+            //    printf("<");
+            //}
+            //
+            //printf("4\n");
             free(lv->C->matrix.data);
             free(lv->C);
             free(lv);
             v->l = NULL;
         }
     }else{
-        printf(" ---------------- ue\n");
-        fflush(stdout);
+        //printf(" ---------------- ue\n");
+        //fflush(stdout);
         qtd++;
+        double **mat2 = calloc(len, sizeof(double*));
+        int i;
+        for (i = 0; i < len; i++)
+        {
+            mat2[i] = calloc(3, sizeof(double));
+        }
+        i = len-1;
+        printf("\n[");
+        while (v)
+        {
+            mat2[i][0] = v->pos.x;
+            mat2[i][1] = v->pos.y;
+            mat2[i--][2] = v->pos.z;
+            //printf("%f %f %f; ", v->pos.x, v->pos.y, v->pos.z);
+            v = v->p;
+        }
+
+        double lde = LDE(mat, mat2, len);
+        
+        printf("\n \t LDE = %.20f\n", lde);
+
+        for (i = 0; i < len; i++)
+        {
+            printf("%f %f %f; ", mat[i][0], mat[i][1], mat[i][2]);
+        }
+        
+        printf("]\n");
         return 0;
     }
 }
+
+
+int printGrafo(int len, vertex *v, int i){
+    int j = -1;
+    if (v->l){
+        printf("(%d, %d),", i, i+1);
+        j = printGrafo(len, v->l, i+1);        
+    }
+    if (v->r){
+        if (j != -1){
+            printf("(%d, %d),", i, j);        
+            j = printGrafo(len, v->r, j);        
+        }else
+        {
+            printf("(%d, %d),", i, i+1);
+            return printGrafo(len, v->r, i+1);        
+        }
+    }
+    if (j == -1) return i+1;
+    return j;
+}
+
+vertex *resul[10];
 
 int solve(char *fileName, int len) {
     double **mat = matrixConstruct(fileName, len);
@@ -391,6 +455,8 @@ int solve(char *fileName, int len) {
     gsl_matrix_view B2 = gsl_matrix_view_array(b2, 4, 4);
 
     double theta2 = theta(mat,1);
+    //printf("[ cos %f\n", theta2);
+
     double ct2 = cos(theta2);
     double st2 = sin(theta2);
     double b3[] = {0-ct2,0-st2,0,0-dis(mat,2)*ct2,
@@ -401,6 +467,7 @@ int solve(char *fileName, int len) {
 
     vertex *v = (vertex*)calloc(1, sizeof(vertex));
     v->C = &B1;
+    //printf("[ %f, %f %f\n", v->pos.x, v->pos.y, v->pos.z);
 
 
     vertex *v2 = (vertex*)calloc(1, sizeof(vertex));
@@ -409,8 +476,7 @@ int solve(char *fileName, int len) {
     v2->p = v;
     v2->pos.x = 0-dis(mat,1);
 
-        printf("[ %f, %f", v2->pos.x, v2->pos.y);
-        printf("  %f ]\n", v2->pos.z);
+     //   printf("[ %f, %f %f\n", v2->pos.x, v2->pos.y, v2->pos.z);
     vertex *v3 = (vertex*)calloc(1, sizeof(vertex));
     v2->r = v3;
     v3->C = (gsl_matrix_view*)calloc(1, sizeof(gsl_matrix_view));
@@ -422,11 +488,14 @@ int solve(char *fileName, int len) {
     v3->pos.x = dis(mat,2)*ct2 -dis(mat,1);
     v3->pos.y = dis(mat,2)*st2;
 
-    printf("[ %f, %f", v3->pos.x, v3->pos.y);
-        printf("  %f]\n", v3->pos.z);
+    //printf("[ %f, %f", v3->pos.x, v3->pos.y);
+    //    printf("  %f]\n", v3->pos.z);
 
     BranchAndPrune(mat, len, v3, 3);
     printf("%d", qtd);
+    //printf("[");
+    //printGrafo(len, v, 0);
+    //printf("]");
     return 1;
 }
 
@@ -455,9 +524,6 @@ int countCols(char *fileName) {
             }
             continue;
         }
-        else if (!k && buff[0] == '0') {
-            j++;
-        }
         else if (buff[0] == ';') {
             if (k) j++;
             break;
@@ -471,6 +537,10 @@ int countCols(char *fileName) {
 }
 
 int main(int argc, char **argv) {
+    double time_spent = 0.0;
+
+	clock_t begin = clock();
+
     if (argc < 3) {
         usage(argv[0]);
     }
@@ -487,11 +557,26 @@ int main(int argc, char **argv) {
                 }
             }
             
-            return solve(argv[2], len);
+            solve(argv[2], len);
         } else if (!strcmp(argv[1], "-c")) {
             printf("%d\n",countCols(argv[2]));
+        } else if (!strcmp(argv[1], "-show")) {
+            printMat(matrixConstruct(argv[2], countCols(argv[2])), countCols(argv[2]));
+        } else if (!strcmp(argv[1], "-d")) {
+            ddd(argv[2],10);
         } else {
             usage(argv[0]);
         }
     }
+
+    //getchar();
+    
+    clock_t end = clock();
+
+	// calculate elapsed time by finding difference (end - begin) and
+	// divide by CLOCKS_PER_SEC to convert to seconds
+	time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
+
+	printf("\nTime elpased is %.20f seconds", time_spent);
+    fflush(stdout);
 }
