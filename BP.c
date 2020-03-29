@@ -20,6 +20,7 @@ typedef struct _vertex {
 void usage(char *exec) {
     printf("%s -s <input_file> <count_vertex>\n", exec);
     printf("%s -c <input_file>\n", exec);
+    printf("%s -show <input_file>\n", exec);
 }
 
 int* ddd(char *fileName, int len){
@@ -244,7 +245,7 @@ int BranchAndPrune(double **mat, int len, vertex *v, int i){
         //printf("%f %f \n", cwi, cwi2 );
         //printf("%f %f \n", acos(cwi)*57.295779513, acos(cwi2)*57.295779513 );
         if (cwi*cwi > 1){
-            printf("\n %f CORREEEEEEEEE BEEEEERG!!!!!!!!!!!!!!!!!!!!!!!!!!", cwi);
+            printf("\n %f Error cwi", cwi);
             getchar();
         }  
         double swi = sqrt(1-pow(cwi, 2));
