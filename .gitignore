@@ -3,3 +3,6 @@
 
 # Windows exec files
 **/*.exe
+
+# Bibliography
+/docs
