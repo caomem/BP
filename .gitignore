@@ -1,2 +1,5 @@
 # Windows directory control files
 **/desktop.ini
+
+# Windows exec files
+**/*.exe
